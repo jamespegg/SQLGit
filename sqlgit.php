@@ -118,7 +118,7 @@ switch ($command) {
 						if (!isset($current[$table][$column])) {
 
 							// Create Column
-							$connection->exec(Schema::createColumn($data));
+							$connection->exec(Schema::createColumn($table, $data));
 
 						} else {
 							$diff = array_diff_assoc($data, $current[$table][$column]);
