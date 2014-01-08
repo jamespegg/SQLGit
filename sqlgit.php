@@ -24,6 +24,8 @@ $opts .= 'm::';	// Merge
 
 $options = getopt($opts);
 
+$log = [];
+
 
 /**
  * Argument Checks
@@ -97,6 +99,9 @@ switch ($command) {
 		$file = fopen('schema', 'w+');
 		fwrite($file, serialize($current));
 		fclose($file);
+
+		$log[] = 'Schema Saved';
+
 		break;
 
 	case 'm':
@@ -168,16 +173,24 @@ switch ($command) {
 
 			// Make all changes
 			$connection->commit();
+
+			$log[] = 'Database Message : ' . $connection->errorInfo()[2];
 		}
 		break;
 }
 
-
-
-echo "\n";
+echo implode("\n", array_merge($log, Schema::getLog())) . "\n";
 
 class Schema
 {
+
+	private static $log = [];
+	private static $defaults = ['CURRENT_TIMESTAMP', 'NULL'];
+
+	public static function getLog()
+	{
+		return self::$log;
+	}
 
 	/* Tables */
 
@@ -198,11 +211,15 @@ class Schema
 
 		$string .= ")";
 
+		self::$log[] = "Create table {$table}";
+
 		return $string;
 	}
 
 	public static function dropTable($table)
 	{
+		self::$log[] = "Drop table {$table}";
+
 		return "DROP TABLE `{$table}`";
 	}
 
@@ -210,16 +227,22 @@ class Schema
 
 	public static function createColumn($table, array $data)
 	{
+		self::$log[] = "Create column {$data['Field']} in {$table}";
+
 		return "ALTER TABLE `{$table}` ADD " . self::column($data);
 	}
 
 	public static function dropColumn($table, array $data)
 	{
+		self::$log[] = "Drop column {$data['Field']} in {$table}";
+
 		return "ALTER TABLE `{$table}` DROP `{$data['Field']}`";
 	}
 
 	public static function alterColumn($table, array $data)
 	{
+		self::$log[] = "Alter column {$data['Field']} in {$table}";
+
 		return "ALTER TABLE `{$table}` CHANGE `{$data['Field']}` " . self::column($data);
 	}
 
@@ -232,7 +255,12 @@ class Schema
 		}
 
 		if (!empty($data['Default'])) {
-			$string .= " DEFAULT '{$data['Default']}'";
+			if (!in_array($data['Default'], self::$defaults)) {
+				$string .= " DEFAULT '{$data['Default']}'";
+			} else {
+				$string .= " DEFAULT {$data['Default']}";
+			}
+			
 		}
 
 		if (!empty($data['Extra'])) {
@@ -246,6 +274,8 @@ class Schema
 
 	public static function createIndex($table, array $data)
 	{
+		self::$log[] = "Create index in {$table}";
+
 		$string = '';
 
 		if (!empty($data['Key'])) {
@@ -277,6 +307,8 @@ class Schema
 
 	public static function dropIndex($table, array $data)
 	{
+		self::$log[] = "Drop index in {$table}";
+
 		return "ALTER TABLE `{$table}` DROP INDEX {$data['Field']};";
 	}
 }
